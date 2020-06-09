@@ -1,0 +1,357 @@
+
+Download and Clean Dataset
+Let's start by importing the pandas and the Numpy libraries.
+
+In [2]:
+import pandas as pd
+import numpy as np
+We will be using the dataset provided in the assignment
+
+The dataset is about the compressive strength of different samples of concrete based on the volumes of the different ingredients that were used to make them. Ingredients include:
+
+1. Cement
+
+2. Blast Furnace Slag
+
+3. Fly Ash
+
+4. Water
+
+5. Superplasticizer
+
+6. Coarse Aggregate
+
+7. Fine Aggregate
+
+Let's read the dataset into a pandas dataframe.
+
+In [3]:
+concrete_data = pd.read_csv('concrete_data.csv')
+concrete_data.head()
+Out[3]:
+Cement	Blast Furnace Slag	Fly Ash	Water	Superplasticizer	Coarse Aggregate	Fine Aggregate	Age	Strength
+0	540.0	0.0	0.0	162.0	2.5	1040.0	676.0	28	79.99
+1	540.0	0.0	0.0	162.0	2.5	1055.0	676.0	28	61.89
+2	332.5	142.5	0.0	228.0	0.0	932.0	594.0	270	40.27
+3	332.5	142.5	0.0	228.0	0.0	932.0	594.0	365	41.05
+4	198.6	132.4	0.0	192.0	0.0	978.4	825.5	360	44.30
+So the first concrete sample has 540 cubic meter of cement, 0 cubic meter of blast furnace slag, 0 cubic meter of fly ash, 162 cubic meter of water, 2.5 cubic meter of superplaticizer, 1040 cubic meter of coarse aggregate, 676 cubic meter of fine aggregate. Such a concrete mix which is 28 days old, has a compressive strength of 79.99 MPa.
+
+Let's check how many data points we have.
+In [4]:
+concrete_data.shape
+Out[4]:
+(1030, 9)
+So, there are approximately 1000 samples to train our model on. Because of the few samples, we have to be careful not to overfit the training data.
+
+Let's check the dataset for any missing values.
+
+In [5]:
+concrete_data.describe()
+Out[5]:
+Cement	Blast Furnace Slag	Fly Ash	Water	Superplasticizer	Coarse Aggregate	Fine Aggregate	Age	Strength
+count	1030.000000	1030.000000	1030.000000	1030.000000	1030.000000	1030.000000	1030.000000	1030.000000	1030.000000
+mean	281.167864	73.895825	54.188350	181.567282	6.204660	972.918932	773.580485	45.662136	35.817961
+std	104.506364	86.279342	63.997004	21.354219	5.973841	77.753954	80.175980	63.169912	16.705742
+min	102.000000	0.000000	0.000000	121.800000	0.000000	801.000000	594.000000	1.000000	2.330000
+25%	192.375000	0.000000	0.000000	164.900000	0.000000	932.000000	730.950000	7.000000	23.710000
+50%	272.900000	22.000000	0.000000	185.000000	6.400000	968.000000	779.500000	28.000000	34.445000
+75%	350.000000	142.950000	118.300000	192.000000	10.200000	1029.400000	824.000000	56.000000	46.135000
+max	540.000000	359.400000	200.100000	247.000000	32.200000	1145.000000	992.600000	365.000000	82.600000
+In [6]:
+concrete_data.isnull().sum()
+Out[6]:
+Cement                0
+Blast Furnace Slag    0
+Fly Ash               0
+Water                 0
+Superplasticizer      0
+Coarse Aggregate      0
+Fine Aggregate        0
+Age                   0
+Strength              0
+dtype: int64
+The data looks very clean and is ready to be used to build our model.
+
+Split data into predictors and target
+The target variable in this problem is the concrete sample strength. Therefore, our predictors will be all the other columns.
+
+In [7]:
+concrete_data_columns = concrete_data.columns
+predictors = concrete_data[concrete_data_columns[concrete_data_columns != 'Strength']] # all columns except Strength
+target = concrete_data['Strength'] # Strength column
+Let's do a quick sanity check of the predictors and the target dataframes.
+
+In [8]:
+predictors.head()
+Out[8]:
+Cement	Blast Furnace Slag	Fly Ash	Water	Superplasticizer	Coarse Aggregate	Fine Aggregate	Age
+0	540.0	0.0	0.0	162.0	2.5	1040.0	676.0	28
+1	540.0	0.0	0.0	162.0	2.5	1055.0	676.0	28
+2	332.5	142.5	0.0	228.0	0.0	932.0	594.0	270
+3	332.5	142.5	0.0	228.0	0.0	932.0	594.0	365
+4	198.6	132.4	0.0	192.0	0.0	978.4	825.5	360
+In [9]:
+target.head()
+Out[9]:
+0    79.99
+1    61.89
+2    40.27
+3    41.05
+4    44.30
+Name: Strength, dtype: float64
+In [10]:
+n_cols = predictors.shape[1] # number of predictors
+n_cols
+Out[10]:
+8
+
+
+Import Keras
+Let's go ahead and import the Keras library
+In [11]:
+import keras
+Using TensorFlow backend.
+As you can see, the TensorFlow backend was used to install the Keras library.
+
+Let's import the rest of the packages from the Keras library that we will need to build our regressoin model.
+
+In [12]:
+from keras.models import Sequential
+from keras.layers import Dense
+In [13]:
+# define regression model
+def regression_model():
+    # create model
+    model = Sequential()
+    model.add(Dense(10, activation='relu', input_shape=(n_cols,)))
+    model.add(Dense(1))
+    
+    # compile model
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    return model
+The above function creates a model that has one hidden layer with 10 neurons and a ReLU activation function. It uses the adam optimizer and the mean squared error as the loss function.
+
+Let's import scikit-learn in order to randomly split the data into a training and test sets
+
+In [14]:
+from sklearn.model_selection import train_test_split
+Splitting the data into a training and test sets by holding 30% of the data for testing
+
+In [15]:
+X_train, X_test, y_train, y_test = train_test_split(predictors, target, test_size=0.3, random_state=42)
+Train and Test the Network
+Let's call the function now to create our model.
+
+In [16]:
+# build the model
+model = regression_model()
+Next, we will train the model for 50 epochs.
+
+In [23]:
+# fit the model
+epochs = 50
+model.fit(X_train, y_train, epochs=epochs, verbose=1)
+Epoch 1/50
+721/721 [==============================] - 0s 49us/step - loss: 228.8328
+Epoch 2/50
+721/721 [==============================] - 0s 51us/step - loss: 215.9244
+Epoch 3/50
+721/721 [==============================] - 0s 52us/step - loss: 208.6913
+Epoch 4/50
+721/721 [==============================] - 0s 51us/step - loss: 203.2783
+Epoch 5/50
+721/721 [==============================] - 0s 53us/step - loss: 198.6944
+Epoch 6/50
+721/721 [==============================] - 0s 44us/step - loss: 192.0748
+Epoch 7/50
+721/721 [==============================] - 0s 48us/step - loss: 187.0641
+Epoch 8/50
+721/721 [==============================] - 0s 49us/step - loss: 182.6149
+Epoch 9/50
+721/721 [==============================] - 0s 49us/step - loss: 180.3111
+Epoch 10/50
+721/721 [==============================] - 0s 43us/step - loss: 171.8613
+Epoch 11/50
+721/721 [==============================] - 0s 50us/step - loss: 169.2272
+Epoch 12/50
+721/721 [==============================] - 0s 49us/step - loss: 163.2405
+Epoch 13/50
+721/721 [==============================] - 0s 48us/step - loss: 163.1215
+Epoch 14/50
+721/721 [==============================] - 0s 50us/step - loss: 157.3549
+Epoch 15/50
+721/721 [==============================] - 0s 48us/step - loss: 154.1529
+Epoch 16/50
+721/721 [==============================] - 0s 50us/step - loss: 151.6540
+Epoch 17/50
+721/721 [==============================] - 0s 49us/step - loss: 149.4561
+Epoch 18/50
+721/721 [==============================] - 0s 50us/step - loss: 146.1440
+Epoch 19/50
+721/721 [==============================] - 0s 53us/step - loss: 143.4548
+Epoch 20/50
+721/721 [==============================] - 0s 48us/step - loss: 142.1613
+Epoch 21/50
+721/721 [==============================] - 0s 45us/step - loss: 145.6452
+Epoch 22/50
+721/721 [==============================] - 0s 46us/step - loss: 136.2488
+Epoch 23/50
+721/721 [==============================] - 0s 47us/step - loss: 134.2804
+Epoch 24/50
+721/721 [==============================] - 0s 50us/step - loss: 132.4984
+Epoch 25/50
+721/721 [==============================] - 0s 51us/step - loss: 130.1131
+Epoch 26/50
+721/721 [==============================] - 0s 46us/step - loss: 129.2872
+Epoch 27/50
+721/721 [==============================] - 0s 50us/step - loss: 129.2868
+Epoch 28/50
+721/721 [==============================] - 0s 46us/step - loss: 126.3845
+Epoch 29/50
+721/721 [==============================] - 0s 55us/step - loss: 125.4513
+Epoch 30/50
+721/721 [==============================] - 0s 50us/step - loss: 123.3704
+Epoch 31/50
+721/721 [==============================] - 0s 45us/step - loss: 125.7223
+Epoch 32/50
+721/721 [==============================] - 0s 57us/step - loss: 123.0903
+Epoch 33/50
+721/721 [==============================] - 0s 52us/step - loss: 124.5342
+Epoch 34/50
+721/721 [==============================] - 0s 49us/step - loss: 121.9392
+Epoch 35/50
+721/721 [==============================] - 0s 63us/step - loss: 119.7415
+Epoch 36/50
+721/721 [==============================] - 0s 56us/step - loss: 119.3327
+Epoch 37/50
+721/721 [==============================] - 0s 58us/step - loss: 119.2475
+Epoch 38/50
+721/721 [==============================] - 0s 50us/step - loss: 117.9988
+Epoch 39/50
+721/721 [==============================] - 0s 60us/step - loss: 116.8755
+Epoch 40/50
+721/721 [==============================] - 0s 52us/step - loss: 118.0329
+Epoch 41/50
+721/721 [==============================] - 0s 59us/step - loss: 116.3102
+Epoch 42/50
+721/721 [==============================] - 0s 43us/step - loss: 120.6214
+Epoch 43/50
+721/721 [==============================] - 0s 48us/step - loss: 116.5501
+Epoch 44/50
+721/721 [==============================] - 0s 53us/step - loss: 115.1019
+Epoch 45/50
+721/721 [==============================] - 0s 56us/step - loss: 115.6051
+Epoch 46/50
+721/721 [==============================] - 0s 47us/step - loss: 112.9754
+Epoch 47/50
+721/721 [==============================] - 0s 47us/step - loss: 112.9954
+Epoch 48/50
+721/721 [==============================] - 0s 46us/step - loss: 114.7252
+Epoch 49/50
+721/721 [==============================] - 0s 48us/step - loss: 113.8326
+Epoch 50/50
+721/721 [==============================] - 0s 47us/step - loss: 111.1589
+Out[23]:
+<keras.callbacks.callbacks.History at 0x7f46c0346668>
+Next we need to evaluate the model on the test data.
+
+In [34]:
+loss_val = model.evaluate(X_test, y_test)
+y_pred = model.predict(X_test)
+loss_val
+309/309 [==============================] - 0s 45us/step
+Out[34]:
+50.11536543268988
+Now we need to compute the mean squared error between the predicted concrete strength and the actual concrete strength.
+
+Let's import the mean_squared_error function from Scikit-learn.
+
+In [35]:
+from sklearn.metrics import mean_squared_error
+In [36]:
+mean_square_error = mean_squared_error(y_test, y_pred)
+mean = np.mean(mean_square_error)
+standard_deviation = np.std(mean_square_error)
+print(mean, standard_deviation)
+50.115365393280605 0.0
+Create a list of 50 mean squared errors and report mean and the standard deviation of the mean squared errors.
+
+In [32]:
+total_mean_squared_errors = 50
+epochs = 50
+mean_squared_errors = []
+for i in range(0, total_mean_squared_errors):
+    X_train, X_test, y_train, y_test = train_test_split(predictors, target, test_size=0.3, random_state=i)
+    model.fit(X_train, y_train, epochs=epochs, verbose=0)
+    MSE = model.evaluate(X_test, y_test, verbose=0)
+    print("MSE "+str(i+1)+": "+str(MSE))
+    y_pred = model.predict(X_test)
+    mean_square_error = mean_squared_error(y_test, y_pred)
+    mean_squared_errors.append(mean_square_error)
+
+mean_squared_errors = np.array(mean_squared_errors)
+mean = np.mean(mean_squared_errors)
+standard_deviation = np.std(mean_squared_errors)
+
+print('\n')
+print("Below is the mean and standard deviation of " +str(total_mean_squared_errors) + " mean squared errors without normalized data. Total number of epochs for each training is: " +str(epochs) + "\n")
+print("Mean: "+str(mean))
+print("Standard Deviation: "+str(standard_deviation))
+MSE 1: 45.5088312216947
+MSE 2: 55.35291563114302
+MSE 3: 44.05973736290793
+MSE 4: 47.97384547261358
+MSE 5: 46.27975555222397
+MSE 6: 55.298517245690796
+MSE 7: 53.225258663634264
+MSE 8: 42.05248688879908
+MSE 9: 44.19757292417261
+MSE 10: 49.286330979233036
+MSE 11: 44.415615118823006
+MSE 12: 42.217887643857296
+MSE 13: 52.90644020401544
+MSE 14: 49.27302535220643
+MSE 15: 48.32965868113496
+MSE 16: 41.30980674348603
+MSE 17: 44.32437073297099
+MSE 18: 43.46031706232855
+MSE 19: 41.79449335734049
+MSE 20: 45.04111388123151
+MSE 21: 46.147853863663656
+MSE 22: 44.4407159749744
+MSE 23: 41.86130490349334
+MSE 24: 44.014878973605946
+MSE 25: 46.43221985406474
+MSE 26: 52.132735267811995
+MSE 27: 46.03804981515631
+MSE 28: 44.34027326762869
+MSE 29: 50.555759145989775
+MSE 30: 46.53499229208937
+MSE 31: 55.29556269475943
+MSE 32: 40.970819893006755
+MSE 33: 46.93645506923639
+MSE 34: 41.52137350187333
+MSE 35: 48.03412892363218
+MSE 36: 49.22415666055525
+MSE 37: 47.94709300994873
+MSE 38: 48.0688581744444
+MSE 39: 44.629797222544845
+MSE 40: 41.93882681096642
+MSE 41: 48.76071383034913
+MSE 42: 42.53869528909331
+MSE 43: 44.61198106167
+MSE 44: 56.762810247229915
+MSE 45: 49.92081000812617
+MSE 46: 51.572559159164676
+MSE 47: 46.578073125055305
+MSE 48: 44.42433949195837
+MSE 49: 53.60878757365699
+MSE 50: 50.11536543268988
+
+
+Below is the mean and standard deviation of 50 mean squared errors without normalized data. Total number of epochs for each training is: 50
+
+Mean: 47.04535900368696
+Standard Deviation: 4.146803067606264
+In [ ]:
